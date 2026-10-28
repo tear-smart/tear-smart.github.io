@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Developer Site</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  font-family:Consolas,Monaco,system-ui,monospace;
+}
+#bg-canvas{position:fixed;inset:0;z-index:0;opacity:var(--bg-opacity,0.2);}
+
+#splash{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  z-index:999;
+  background:var(--bg);
+}
+#splash-text{
+  font-size:clamp(4rem,14vw,9rem);
+  color:var(--accent);
+  text-shadow:0 0 10px var(--accent),0 0 26px var(--accent);
+  user-select:none;
+}
+.particle{
+  position:absolute;pointer-events:none;
+  background:var(--accent);
+  border-radius:50%;
+}
+
+#home{
+  position:relative;z-index:1;width:100%;height:100%;display:none;
+  padding:2rem;overflow:auto;
+}
+.container{max-width:900px;margin:0 auto;padding-top:10vh;}
+h1{
+  font-size:2.4rem;color:var(--accent);margin-bottom:0.5rem;letter-spacing:2px;
+}
+.cursor{
+  display:inline-block;width:10px;height:1.8rem;background:var(--accent);
+  animation: blink 0.7s infinite;vertical-align:text-bottom;margin-left:4px;
+}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.sub{color:var(--text);font-size:1.1rem;margin-bottom:2rem;}
+.line{width:140px;height:2px;background:var(--accent);margin-bottom:2rem;box-shadow:0 0 6px var(--accent);}
+.card{
+  border:1px solid var(--card-border);
+  border-radius:6px;padding:1.4rem;margin-bottom:1rem;
+  background:var(--card-bg);
+}
+.card h3{color:var(--accent);margin-bottom:0.6rem;}
+.card p{color:var(--text);line-height:1.7;}
+.code-tip{margin-top:2rem;color:var(--text);font-size:0.9rem;}
+
+#star-btn{
+  position:fixed;top:18px;right:22px;
+  font-size:28px;cursor:pointer;z-index:9999;
+  user-select:none;transition:transform 0.2s;
+  color:var(--accent);
+}
+#star-btn:active{transform:scale(0.85);}
+
+#theme-panel{
+  position:fixed;top:60px;right:22px;z-index:9999;
+  padding:14px;border-radius:8px;display:none;
+  background:rgba(0,0,0,0.75);border:1px solid var(--accent);
+}
+#theme-panel button{
+  display:block;width:100%;margin:6px 0;padding:7px 12px;
+  border:none;border-radius:4px;cursor:pointer;font-family:inherit;
+  background:#111;color:var(--accent);border:1px solid var(--accent);
+}
+#theme-panel button:hover{background:var(--accent);color:#000;}
+
+:root{
+  --bg:#000;
+  --text:#39ff14;
+  --accent:#39ff14;
+  --card-bg:rgba(0,22,0,0.72);
+  --card-border:#287a18;
+  --bg-opacity:0.25;
+}
+body{background:var(--bg);color:var(--text);}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div id="star-btn">⭐</div>
+<div id="theme-panel">
+  <button data-file="config/theme-matrix.js">绿色矩阵原版</button>
+  <button data-file="config/theme-purple.js">深空紫蓝星星</button>
+  <button data-file="config/theme-orange.js">橙火工控</button>
+  <button data-file="config/theme-white.js">极简白色</button>
+  <button data-file="config/theme-cyan.js">深海青蓝</button>
+</div>
+
+<div id="splash"><div id="splash-text">Hello World</div></div>
+<div id="home">
+  <div class="container">
+    <h1 id="type-title"></h1><span class="cursor"></span>
+    <div class="sub">// Developer Personal Terminal</div>
+    <div class="line"></div>
+    <div class="card">
+      <h3>About Me</h3>
+      <p>后端开发 / 架构爱好者，热爱拆解底层原理，喜欢折腾开源、中间件、静态站点与自动化部署。</p>
+    </div>
+    <div class="card">
+      <h3>Tech Stack</h3>
+      <p>Java · Spring · MySQL · Redis · RocketMQ · Git · Linux</p>
+    </div>
+    <div class="card">
+      <h3>Navigation</h3>
+      <p>👉 blog.md | projects/ | notes/</p>
+    </div>
+    <div class="code-tip">$ systemctl status website<br>✅ running</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let w = canvas.width = innerWidth;
+let h = canvas.height = innerHeight;
+let rafId = null; // 保存背景动画requestAnimationFrame ID，切换主题时销毁
+
+const splash = document.getElementById('splash');
+const splashText = document.getElementById('splash-text');
+const home = document.getElementById('home');
+const typeTitle = document.getElementById('type-title');
+const starBtn = document.getElementById('star-btn');
+const themePanel = document.getElementById('theme-panel');
+
+let clickCount = 0;
+const unlockThreshold = 10;
+let themeUnlocked = false;
+
+// 加载主题脚本 + 应用主题
+async function loadTheme(filePath) {
+  // 停止旧动画
+  if(rafId) cancelAnimationFrame(rafId);
+  const oldScript = document.querySelector('script[data-theme-loaded]');
+  if(oldScript) oldScript.remove();
+
+  return new Promise((resolve)=>{
+    const s = document.createElement('script');
+    s.src = filePath;
+    s.dataset.themeLoaded = '1';
+    s.onload = ()=>{
+      applyTheme(window.CURRENT_THEME);
+      resolve();
+    }
+    document.body.appendChild(s);
+  })
+}
+
+function applyTheme(theme) {
+  const root = document.documentElement.style;
+  root.setProperty('--bg', theme.bg);
+  root.setProperty('--text', theme.text);
+  root.setProperty('--accent', theme.accent);
+  root.setProperty('--card-bg', theme.cardBg);
+  root.setProperty('--card-border', theme.cardBorder);
+  root.setProperty('--bg-opacity', theme.bgOpacity);
+  canvas.style.opacity = theme.bgOpacity;
+  w = canvas.width = innerWidth;
+  h = canvas.height = innerHeight;
+  if(theme.init) theme.init(w, h);
+  runBgAnimation(theme.draw);
+}
+
+function runBgAnimation(drawFn) {
+  function loop() {
+    rafId = requestAnimationFrame(loop);
+    drawFn(ctx, w, h);
+  }
+  loop();
+}
+
+// 星星点击计数解锁
+starBtn.onclick = ()=>{
+  clickCount++;
+  if(clickCount >= unlockThreshold) {
+    themeUnlocked = true;
+    themePanel.style.display = 'block';
+  }
+}
+
+// 主题面板点击切换
+document.querySelectorAll('#theme-panel button').forEach(btn=>{
+  btn.onclick = ()=>{
+    loadTheme(btn.dataset.file);
+  }
+})
+
+// 粒子消散逻辑
+function breakText(){
+  const rect = splashText.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.top + rect.height/2;
+  const count = 240;
+  for(let i=0;i<count;i++){
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const s = Math.random()*4 + 1;
+    p.style.width = s+'px';
+    p.style.height = s+'px';
+    p.style.left = cx+'px';
+    p.style.top = cy+'px';
+    splash.appendChild(p);
+    const ang = Math.PI*2*Math.random();
+    const spd = Math.random()*70 + 25;
+    let vx = Math.cos(ang)*spd;
+    let vy = Math.sin(ang)*spd;
+    let op = 1;
+    let x = cx, y = cy;
+    function animate(){
+      op -= 0.010;
+      x += vx * 0.016;
+      y += vy * 0.016;
+      p.style.left = x+'px';
+      p.style.top = y+'px';
+      p.style.opacity = op;
+      if(op>0){
+        requestAnimationFrame(animate);
+      }else p.remove();
+    }
+    requestAnimationFrame(animate);
+  }
+  splashText.style.opacity = '0';
+}
+
+// 打字机
+const titleText = "System Online";
+let ti = 0;
+function typeWriter(){
+  if(ti < titleText.length){
+    typeTitle.textContent += titleText.charAt(ti);
+    ti++;
+    setTimeout(typeWriter,120);
+  }
+}
+
+// 开场时序
+setTimeout(()=>{
+  breakText();
+  setTimeout(()=>{
+    splash.style.opacity = '0';
+    splash.style.transition = 'opacity 1.2s ease-out';
+    setTimeout(()=>{
+      splash.style.display = 'none';
+      home.style.display = 'block';
+      typeWriter();
+    },1200);
+  },1600);
+},1200);
+
+// 窗口resize
+window.addEventListener('resize',()=>{
+  w = canvas.width = innerWidth;
+  h = canvas.height = innerHeight;
+  if(window.CURRENT_THEME?.init) window.CURRENT_THEME.init(w,h);
+});
+
+// 默认加载绿色矩阵
+loadTheme("config/theme-matrix.js");
+</script>
+</body>
+</html>
