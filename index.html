@@ -89,11 +89,11 @@ body{background:var(--bg);color:var(--text);}
 
 <div id="star-btn">⭐</div>
 <div id="theme-panel">
-  <button data-file="config/theme-matrix.js">绿色矩阵原版</button>
-  <button data-file="config/theme-purple.js">深空紫蓝星星</button>
-  <button data-file="config/theme-orange.js">橙火工控</button>
-  <button data-file="config/theme-white.js">极简白色</button>
-  <button data-file="config/theme-cyan.js">深海青蓝</button>
+  <button data-file="config/theme-matrix.js" data-key="matrix">绿色矩阵原版</button>
+  <button data-file="config/theme-purple.js" data-key="purple">深空紫蓝星星</button>
+  <button data-file="config/theme-orange.js" data-key="orange">橙火工控</button>
+  <button data-file="config/theme-white.js" data-key="white">极简白色</button>
+  <button data-file="config/theme-cyan.js" data-key="cyan">深海青蓝</button>
 </div>
 
 <div id="splash"><div id="splash-text">Hello World</div></div>
@@ -123,7 +123,7 @@ const canvas = document.getElementById('bg-canvas');
 const ctx = canvas.getContext('2d');
 let w = canvas.width = innerWidth;
 let h = canvas.height = innerHeight;
-let rafId = null; // 保存背景动画requestAnimationFrame ID，切换主题时销毁
+let rafId = null;
 
 const splash = document.getElementById('splash');
 const splashText = document.getElementById('splash-text');
@@ -136,9 +136,18 @@ let clickCount = 0;
 const unlockThreshold = 10;
 let themeUnlocked = false;
 
+// 主题映射表
+const themeMap = {
+  matrix: "config/theme-matrix.js",
+  purple: "config/theme-purple.js",
+  orange: "config/theme-orange.js",
+  white: "config/theme-white.js",
+  cyan: "config/theme-cyan.js"
+};
+const STORAGE_KEY = "site-last-theme";
+
 // 加载主题脚本 + 应用主题
-async function loadTheme(filePath) {
-  // 停止旧动画
+async function loadTheme(filePath, themeKey) {
   if(rafId) cancelAnimationFrame(rafId);
   const oldScript = document.querySelector('script[data-theme-loaded]');
   if(oldScript) oldScript.remove();
@@ -149,6 +158,8 @@ async function loadTheme(filePath) {
     s.dataset.themeLoaded = '1';
     s.onload = ()=>{
       applyTheme(window.CURRENT_THEME);
+      // 保存到本地存储
+      localStorage.setItem(STORAGE_KEY, themeKey);
       resolve();
     }
     document.body.appendChild(s);
@@ -190,7 +201,7 @@ starBtn.onclick = ()=>{
 // 主题面板点击切换
 document.querySelectorAll('#theme-panel button').forEach(btn=>{
   btn.onclick = ()=>{
-    loadTheme(btn.dataset.file);
+    loadTheme(btn.dataset.file, btn.dataset.key);
   }
 })
 
@@ -263,8 +274,15 @@ window.addEventListener('resize',()=>{
   if(window.CURRENT_THEME?.init) window.CURRENT_THEME.init(w,h);
 });
 
-// 默认加载绿色矩阵
-loadTheme("config/theme-matrix.js");
+// 读取本地存储，优先加载上次主题
+(function initThemeFromStorage(){
+  const savedKey = localStorage.getItem(STORAGE_KEY);
+  if(savedKey && themeMap[savedKey]){
+    loadTheme(themeMap[savedKey], savedKey);
+  }else{
+    loadTheme(themeMap["matrix"], "matrix");
+  }
+})();
 </script>
 </body>
 </html>
