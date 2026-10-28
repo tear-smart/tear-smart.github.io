@@ -75,11 +75,11 @@ h1{
 
 :root{
   --bg:#000;
-  --text:#39ff14;
-  --accent:#39ff14;
-  --card-bg:rgba(0,22,0,0.72);
-  --card-border:#287a18;
-  --bg-opacity:0.25;
+  --text:#fff;
+  --accent:#fff;
+  --card-bg:rgba(0,0,0,0.6);
+  --card-border:#444;
+  --bg-opacity:0.2;
 }
 body{background:var(--bg);color:var(--text);}
 </style>
@@ -136,7 +136,6 @@ let clickCount = 0;
 const unlockThreshold = 10;
 let themeUnlocked = false;
 
-// 主题映射表
 const themeMap = {
   matrix: "config/theme-matrix.js",
   purple: "config/theme-purple.js",
@@ -146,24 +145,22 @@ const themeMap = {
 };
 const STORAGE_KEY = "site-last-theme";
 
-// 加载主题脚本 + 应用主题
 async function loadTheme(filePath, themeKey) {
-  if(rafId) cancelAnimationFrame(rafId);
+  if (rafId) cancelAnimationFrame(rafId);
   const oldScript = document.querySelector('script[data-theme-loaded]');
-  if(oldScript) oldScript.remove();
+  if (oldScript) oldScript.remove();
 
-  return new Promise((resolve)=>{
+  return new Promise((resolve) => {
     const s = document.createElement('script');
     s.src = filePath;
     s.dataset.themeLoaded = '1';
-    s.onload = ()=>{
+    s.onload = () => {
       applyTheme(window.CURRENT_THEME);
-      // 保存到本地存储
       localStorage.setItem(STORAGE_KEY, themeKey);
       resolve();
-    }
+    };
     document.body.appendChild(s);
-  })
+  });
 }
 
 function applyTheme(theme) {
@@ -177,7 +174,7 @@ function applyTheme(theme) {
   canvas.style.opacity = theme.bgOpacity;
   w = canvas.width = innerWidth;
   h = canvas.height = innerHeight;
-  if(theme.init) theme.init(w, h);
+  if (theme.init) theme.init(w, h);
   runBgAnimation(theme.draw);
 }
 
@@ -189,97 +186,90 @@ function runBgAnimation(drawFn) {
   loop();
 }
 
-// 星星点击计数解锁
-starBtn.onclick = ()=>{
+starBtn.onclick = () => {
   clickCount++;
-  if(clickCount >= unlockThreshold) {
+  if (clickCount >= unlockThreshold) {
     themeUnlocked = true;
     themePanel.style.display = 'block';
   }
-}
+};
 
-// 主题面板点击切换
-document.querySelectorAll('#theme-panel button').forEach(btn=>{
-  btn.onclick = ()=>{
+document.querySelectorAll('#theme-panel button').forEach(btn => {
+  btn.onclick = () => {
     loadTheme(btn.dataset.file, btn.dataset.key);
-  }
-})
+  };
+});
 
-// 粒子消散逻辑
-function breakText(){
+function breakText() {
   const rect = splashText.getBoundingClientRect();
-  const cx = rect.left + rect.width/2;
-  const cy = rect.top + rect.height/2;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
   const count = 240;
-  for(let i=0;i<count;i++){
+  for (let i = 0; i < count; i++) {
     const p = document.createElement('div');
     p.className = 'particle';
-    const s = Math.random()*4 + 1;
-    p.style.width = s+'px';
-    p.style.height = s+'px';
-    p.style.left = cx+'px';
-    p.style.top = cy+'px';
+    const s = Math.random() * 4 + 1;
+    p.style.width = s + 'px';
+    p.style.height = s + 'px';
+    p.style.left = cx + 'px';
+    p.style.top = cy + 'px';
     splash.appendChild(p);
-    const ang = Math.PI*2*Math.random();
-    const spd = Math.random()*70 + 25;
-    let vx = Math.cos(ang)*spd;
-    let vy = Math.sin(ang)*spd;
+    const ang = Math.PI * 2 * Math.random();
+    const spd = Math.random() * 70 + 25;
+    let vx = Math.cos(ang) * spd;
+    let vy = Math.sin(ang) * spd;
     let op = 1;
     let x = cx, y = cy;
-    function animate(){
+    function animate() {
       op -= 0.010;
       x += vx * 0.016;
       y += vy * 0.016;
-      p.style.left = x+'px';
-      p.style.top = y+'px';
+      p.style.left = x + 'px';
+      p.style.top = y + 'px';
       p.style.opacity = op;
-      if(op>0){
+      if (op > 0) {
         requestAnimationFrame(animate);
-      }else p.remove();
+      } else p.remove();
     }
     requestAnimationFrame(animate);
   }
   splashText.style.opacity = '0';
 }
 
-// 打字机
 const titleText = "System Online";
 let ti = 0;
-function typeWriter(){
-  if(ti < titleText.length){
+function typeWriter() {
+  if (ti < titleText.length) {
     typeTitle.textContent += titleText.charAt(ti);
     ti++;
-    setTimeout(typeWriter,120);
+    setTimeout(typeWriter, 120);
   }
 }
 
-// 开场时序
-setTimeout(()=>{
+setTimeout(() => {
   breakText();
-  setTimeout(()=>{
+  setTimeout(() => {
     splash.style.opacity = '0';
     splash.style.transition = 'opacity 1.2s ease-out';
-    setTimeout(()=>{
+    setTimeout(() => {
       splash.style.display = 'none';
       home.style.display = 'block';
       typeWriter();
-    },1200);
-  },1600);
-},1200);
+    }, 1200);
+  }, 1600);
+}, 1200);
 
-// 窗口resize
-window.addEventListener('resize',()=>{
+window.addEventListener('resize', () => {
   w = canvas.width = innerWidth;
   h = canvas.height = innerHeight;
-  if(window.CURRENT_THEME?.init) window.CURRENT_THEME.init(w,h);
+  if (window.CURRENT_THEME?.init) window.CURRENT_THEME.init(w, h);
 });
 
-// 读取本地存储，优先加载上次主题
-(function initThemeFromStorage(){
+(function initThemeFromStorage() {
   const savedKey = localStorage.getItem(STORAGE_KEY);
-  if(savedKey && themeMap[savedKey]){
+  if (savedKey && themeMap[savedKey]) {
     loadTheme(themeMap[savedKey], savedKey);
-  }else{
+  } else {
     loadTheme(themeMap["matrix"], "matrix");
   }
 })();
